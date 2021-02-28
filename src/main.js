@@ -1,7 +1,8 @@
 import m4 from "./m4.js";
 
-import noiseImage from "./noise.png";
 import vertexSource from "./main.vert";
+import noiseVertexSource from "./noise.vert";
+import noiseFragmentSource from "./noise.frag";
 
 export const getConfig = function (obj) {
   return {
@@ -31,14 +32,16 @@ export const getProperties = function (obj) {
     lineWidth: 55.0,
 
     waveSpeed: 0.2,
-    waveSpeedD: 0.008,
-    waveSpeedMinI: 0.013,
-    waveSpeedMaxI: 0.021,
+    waveSpeedD: 0.001,
+    waveSpeedMinI: 0.0015,
+    waveSpeedMaxI: 0.0021,
 
     waveHeight: 0.16,
     waveHeightD: 0.094,
-    waveHeightMinI: 0.126,
-    waveHeightMaxI: 0.178,
+    waveHeightMinI: 0.0869,
+    waveHeightMaxI: 0.1132,
+
+    scale: 0.3,
 
     ...obj,
   };
@@ -52,7 +55,7 @@ function WavingFlag(canvas, config, properties) {
   const { meshRows, meshColumns, lineSpacing, lineWidth } = properties;
 
   // Canvas
-  if (typeof(canvas) === 'string') {
+  if (typeof canvas === "string") {
     canvas = document.querySelector(canvas);
   }
 
@@ -181,45 +184,15 @@ function WavingFlag(canvas, config, properties) {
     return str;
   }
 
-  function loadTexture(gl, texture, url) {
+  function createAndSetupTexture(gl) {
+    var texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    const internalFormat = gl.RGBA;
-    const width_ = 1;
-    const height_ = 1;
-    const border = 0;
-    const srcFormat = gl.RGBA;
-    const srcType = gl.UNSIGNED_BYTE;
-    const pixel = new Uint8Array([255, 0, 0, 255]); // opaque blue
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      internalFormat,
-      width_,
-      height_,
-      border,
-      srcFormat,
-      srcType,
-      pixel
-    );
-
-    const image = new Image();
-    image.onload = function () {
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        internalFormat,
-        srcFormat,
-        srcType,
-        image
-      );
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    };
-    image.crossOrigin = "";
-    image.src = url;
+    // Set up texture so we can render any size
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
     return texture;
   }
@@ -227,6 +200,7 @@ function WavingFlag(canvas, config, properties) {
   // Shaders
   let fragmentSource = `
     precision highp float;
+    uniform sampler2D perlinNoiseTexture;
     const float lineSpacing = ${toFloatStr(lineSpacing)};
     const float lineWidth = ${toFloatStr(lineWidth)};
     varying vec2 uv;
@@ -234,8 +208,7 @@ function WavingFlag(canvas, config, properties) {
     void main() {
       float col = 0.5 + 0.5 * sin(uv.x * lineSpacing);
       gl_FragColor = vec4(vec3(0.5 * pow(col, lineWidth)), 1.0);
-    }
-    `;
+    }`;
 
   function compileShader(shaderSource, shaderType) {
     let shader = gl.createShader(shaderType);
@@ -339,29 +312,117 @@ function WavingFlag(canvas, config, properties) {
   bindListeners();
 
   // Shader
+  const handles = {};
+
+  const noiseVertexShader = compileShader(noiseVertexSource, gl.VERTEX_SHADER);
+  const noiseFragmentShader = compileShader(
+    noiseFragmentSource,
+    gl.FRAGMENT_SHADER
+  );
+
   const vertexShader = compileShader(vertexSource, gl.VERTEX_SHADER);
   const fragmentShader = compileShader(fragmentSource, gl.FRAGMENT_SHADER);
 
-  let program = gl.createProgram();
+  // Create shader programs
+  const noiseProgram = gl.createProgram();
+  gl.attachShader(noiseProgram, noiseVertexShader);
+  gl.attachShader(noiseProgram, noiseFragmentShader);
+  gl.linkProgram(noiseProgram);
+  gl.useProgram(noiseProgram);
+
+  // Set up rectangle covering entire canvas
+  const quadVertices = new Float32Array([
+    -1.0,
+    1.0, // top left
+    -1.0,
+    -1.0, // bottom left
+    1.0,
+    1.0, // top right
+    1.0,
+    -1.0, // bottom right
+  ]);
+
+  // Create vertex buffer
+  const noiseVertexDataBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, noiseVertexDataBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(quadVertices),
+    gl.STATIC_DRAW
+  );
+
+  handles.noisePosition = getAttribLocation(noiseProgram, "position");
+
+  // Layout of our data in the vertex buffer
+  gl.vertexAttribPointer(handles.noisePosition, 2, gl.FLOAT, false, 2 * 4, 0);
+  gl.enableVertexAttribArray(handles.noisePosition);
+
+  handles.noiseScale = gl.getUniformLocation(noiseProgram, "scale");
+  handles.noiseResolution = gl.getUniformLocation(noiseProgram, "resolution");
+
+  // Create and bind frame buffer
+  const noiseTextureSize = 256;
+  const framebuffer = gl.createFramebuffer();
+  framebuffer.width = noiseTextureSize;
+  framebuffer.height = noiseTextureSize;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+  // Create texture
+  const perlinTexture = createAndSetupTexture(gl);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    framebuffer.width,
+    framebuffer.height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null
+  );
+
+  // Attach texture to frame buffer
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    perlinTexture,
+    0
+  );
+
+  // Draw noise to framebuffer
+  gl.useProgram(noiseProgram);
+
+  gl.uniform1f(handles.noiseScale, 8.0);
+  gl.uniform2f(handles.noiseResolution, noiseTextureSize, noiseTextureSize);
+
+  gl.viewport(0, 0, noiseTextureSize, noiseTextureSize);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // fabric rendering
+  const program = gl.createProgram();
   gl.attachShader(program, vertexShader);
   gl.attachShader(program, fragmentShader);
   gl.linkProgram(program);
+  gl.useProgram(program);
 
   const vertexDataBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexDataBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-  const positionHandle = getAttribLocation(program, "position");
-  gl.vertexAttribPointer(positionHandle, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(positionHandle);
+  handles.position = getAttribLocation(program, "position");
+  gl.vertexAttribPointer(handles.position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(handles.position);
 
   const uvBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
-  const uvHandle = getAttribLocation(program, "vertexCoordinate");
-  gl.vertexAttribPointer(uvHandle, 2, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(uvHandle);
+  handles.uv = getAttribLocation(program, "vertexCoordinate");
+  gl.vertexAttribPointer(handles.uv, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(handles.uv);
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -371,27 +432,22 @@ function WavingFlag(canvas, config, properties) {
     gl.STATIC_DRAW
   );
 
-  const handles = {};
-  [
-    "time",
-    "projectionMatrix",
-    "viewMatrix",
-    "modelMatrix",
-    "noiseTexture",
-    "waveHeight",
-    "waveSpeed",
-  ].forEach((name) => {
-    handles[name] = getUniformLocation(program, name);
-  });
+  handles.time = getUniformLocation(program, "time");
+  handles.scale = getUniformLocation(program, "scale");
+  handles.projectionMatrix = getUniformLocation(program, "projectionMatrix");
+  handles.viewMatrix = getUniformLocation(program, "viewMatrix");
+  handles.modelMatrix = getUniformLocation(program, "modelMatrix");
+  handles.noiseTexture = getUniformLocation(program, "noiseTexture");
+  handles.waveHeight = getUniformLocation(program, "waveHeight");
+  handles.waveSpeed = getUniformLocation(program, "waveSpeed");
 
   gl.useProgram(program);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, perlinTexture);
   gl.uniform1i(handles.noiseTexture, 0);
   gl.uniformMatrix4fv(handles.projectionMatrix, false, projectionMatrix);
   gl.uniformMatrix4fv(handles.viewMatrix, false, viewMatrix);
   gl.uniformMatrix4fv(handles.modelMatrix, false, getModelMatrix());
-
-  gl.activeTexture(gl.TEXTURE0);
-  loadTexture(gl, gl.createTexture(), noiseImage);
 
   // Draw
   let time = 0.0;
@@ -400,7 +456,7 @@ function WavingFlag(canvas, config, properties) {
   let thisFrame;
 
   function draw() {
-    const { framesToFade, waveSpeed, waveHeight } = properties;
+    const { framesToFade, waveSpeed, waveHeight, scale } = properties;
 
     if (pointerOn) {
       frame = Math.min(framesToFade, frame + 1.0);
@@ -415,8 +471,14 @@ function WavingFlag(canvas, config, properties) {
     lastFrame = thisFrame;
 
     gl.useProgram(program);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(handles.noiseTexture, 0);
+    gl.bindTexture(gl.TEXTURE_2D, perlinTexture);
 
     gl.uniform1f(handles.time, time);
+    gl.uniform1f(handles.scale, scale);
     gl.uniform1f(handles.waveSpeed, waveSpeed);
     gl.uniform1f(handles.waveHeight, waveHeight);
 
@@ -430,7 +492,7 @@ function WavingFlag(canvas, config, properties) {
   // public api
 
   this.draw = draw;
-  
+
   this.toggleInteraction = (on) => (on ? bindListeners() : unbindListeners());
 }
 
