@@ -20,11 +20,9 @@ const mobileViz = new WavingFlag('#mobileViz', {
   meshColumns: 128,
 });
 
-desktopViz.toggleInteraction(true);
-
 function onAnimationFrame() {
   desktopViz.draw();
-  mobileViz.draw();
+  // mobileViz.draw();
 
   requestAnimationFrame(onAnimationFrame);
 }

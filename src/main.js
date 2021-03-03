@@ -33,13 +33,13 @@ export const getProperties = function (obj) {
 
     waveSpeed: 0.2,
     waveSpeedD: 0.001,
-    waveSpeedMinI: 0.0015,
-    waveSpeedMaxI: 0.0021,
+    waveSpeedMinI: 0.002,
+    waveSpeedMaxI: 0.003,
 
-    waveHeight: 0.16,
+    waveHeight: 0.3,
     waveHeightD: 0.094,
-    waveHeightMinI: 0.0869,
-    waveHeightMaxI: 0.1132,
+    waveHeightMinI: 0.1,
+    waveHeightMaxI: 0.2,
 
     scale: 0.3,
 
@@ -47,7 +47,7 @@ export const getProperties = function (obj) {
   };
 };
 
-function WavingFlag(canvas, config, properties) {
+function WavingFlag(parentEl, config, properties) {
   config = getConfig(config);
   properties = getProperties(properties);
 
@@ -55,16 +55,19 @@ function WavingFlag(canvas, config, properties) {
   const { meshRows, meshColumns, lineSpacing, lineWidth } = properties;
 
   // Canvas
-  if (typeof canvas === "string") {
-    canvas = document.querySelector(canvas);
+  if (typeof parentEl === "string") {
+    parentEl = document.querySelector(parentEl);
   }
 
-  if (!(canvas instanceof HTMLCanvasElement)) {
-    console.error("Could not find a suitable canvas element.");
-  }
+  const canvas = document.createElement('canvas');
+
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
 
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
+
+  parentEl.appendChild(canvas);
 
   let gl = canvas.getContext("webgl", { antialias: true });
 
@@ -494,6 +497,10 @@ function WavingFlag(canvas, config, properties) {
   this.draw = draw;
 
   this.toggleInteraction = (on) => (on ? bindListeners() : unbindListeners());
+
+  this.destroy = () => {
+    unbindListeners();
+  }
 }
 
 export default WavingFlag;
