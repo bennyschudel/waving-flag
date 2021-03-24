@@ -210,7 +210,8 @@ function WavingFlag(parentEl, config, properties) {
     
     void main() {
       float col = 0.5 + 0.5 * sin(uv.x * lineSpacing);
-      gl_FragColor = vec4(vec3(0.5 * pow(col, lineWidth)), 1.0);
+      float alpha = pow(col, lineWidth);
+      gl_FragColor = vec4(vec3(0.5 * alpha), alpha);
     }`;
 
   function compileShader(shaderSource, shaderType) {
@@ -400,7 +401,7 @@ function WavingFlag(parentEl, config, properties) {
   gl.uniform2f(handles.noiseResolution, noiseTextureSize, noiseTextureSize);
 
   gl.viewport(0, 0, noiseTextureSize, noiseTextureSize);
-  gl.clearColor(0, 0, 0, 1);
+  gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -485,7 +486,7 @@ function WavingFlag(parentEl, config, properties) {
     gl.uniform1f(handles.waveSpeed, waveSpeed);
     gl.uniform1f(handles.waveHeight, waveHeight);
 
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(0, 0, 0, 0);
     gl.enable(gl.DEPTH_TEST);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
