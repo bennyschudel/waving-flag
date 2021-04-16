@@ -6,6 +6,8 @@
   "scripts": {
     "serve": "parcel src/index.html --out-dir temp",
     "build": "parcel build --no-content-hash src/main.js",
+    "demo:build": "parcel build --no-content-hash --out-dir demo src/index.html",
+    "demo:deploy": "git subtree push --prefix demo origin gh-pages",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bennny Schudel",
