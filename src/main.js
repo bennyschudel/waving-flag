@@ -16,12 +16,12 @@ export const getConfig = function (obj) {
 
 export const getProperties = function (obj) {
   return {
-    cameraPitch: 0.16,
-    cameraYaw: 1.26,
-    cameraDist: 1.79,
+    cameraPitch: 0.0, // 0.16,
+    cameraYaw: 1.5, // 1.26,
+    cameraDist: 1.8,
 
     scaleZ: 2.0,
-    translateZ: -0.09,
+    translateZ: -0.1,
 
     meshRows: 128,
     meshColumns: 256,
