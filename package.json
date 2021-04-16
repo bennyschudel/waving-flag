@@ -6,13 +6,15 @@
   "scripts": {
     "serve": "parcel src/index.html --out-dir temp",
     "build": "parcel build --no-content-hash src/main.js",
-    "demo:build": "parcel build --no-content-hash --out-dir demo src/index.html",
-    "demo:deploy": "git subtree push --prefix demo origin gh-pages",
+    "demo:build": "parcel build --public-url '.' --no-content-hash --out-dir demo src/index.html",
+    "demo:deploy": "gh-pages -d demo",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bennny Schudel",
   "license": "MIT",
   "devDependencies": {
+    "cssnano": "^4.1.10",
+    "gh-pages": "^3.1.0",
     "glslify-bundle": "^5.1.1",
     "glslify-deps": "^1.3.2",
     "parcel": "1.12.3"

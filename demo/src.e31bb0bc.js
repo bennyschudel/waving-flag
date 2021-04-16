@@ -11,4 +11,4 @@ module.exports="\n// GLSL version of 2D periodic seamless perlin noise.\n// http
 },{"./m4.js":"JEbG","./main.vert":"sN+3","./noise.vert":"zosk","./noise.frag":"cfs6"}],"Focm":[function(require,module,exports) {
 "use strict";var e=i(require("./main.js"));function i(e){return e&&e.__esModule?e:{default:e}}var n=new e.default("#desktopViz",{dpr:2},{lineSpacing:200,lineWidth:55,meshRows:128,meshColumns:256}),s=new e.default("#mobileViz",{dpr:1},{lineSpacing:100,lineWidth:25,meshRows:64,meshColumns:128});function t(){n.draw(),requestAnimationFrame(t)}requestAnimationFrame(t);
 },{"./main.js":"epB2"}]},{},["Focm"], null)
-//# sourceMappingURL=/src.e31bb0bc.js.map
+//# sourceMappingURL=src.e31bb0bc.js.map
