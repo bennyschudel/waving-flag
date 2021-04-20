@@ -16,8 +16,8 @@ export const getConfig = function (obj) {
 
 export const getProperties = function (obj) {
   return {
-    cameraPitch: 0.0, // 0.16,
-    cameraYaw: 1.5, // 1.26,
+    cameraPitch: 0.0,
+    cameraYaw: 1.5,
     cameraDist: 1.8,
 
     scaleZ: 2.0,
@@ -32,14 +32,12 @@ export const getProperties = function (obj) {
     lineWidth: 55.0,
 
     waveSpeed: 0.2,
-    waveSpeedD: 0.001,
-    waveSpeedMinI: 0.002,
-    waveSpeedMaxI: 0.003,
+    waveSpeedD: 0.0002,
+    waveSpeedI: 0.0008,
 
     waveHeight: 0.3,
     waveHeightD: 0.094,
-    waveHeightMinI: 0.1,
-    waveHeightMaxI: 0.2,
+    waveHeightI: 0.112,
 
     scale: 0.3,
 
@@ -251,23 +249,13 @@ function WavingFlag(parentEl, config, properties) {
   function fadeIn(f) {
     const {
       waveSpeedD,
-      waveSpeedMinI,
-      waveSpeedMaxI,
+      waveSpeedI,
       waveHeightD,
-      waveHeightMinI,
-      waveHeightMaxI,
+      waveHeightI,
     } = properties;
 
-    properties.waveSpeed = mix(
-      waveSpeedD,
-      mix(waveSpeedMinI, waveSpeedMaxI, pointerPosition.x),
-      f
-    );
-    properties.waveHeight = mix(
-      waveHeightD,
-      mix(waveHeightMinI, waveHeightMaxI, pointerPosition.y),
-      f
-    );
+    properties.waveSpeed = mix(waveSpeedD, waveSpeedI, f);
+    properties.waveHeight = mix(waveHeightD, waveHeightI, f);
   }
 
   function pointerMove(evt) {
